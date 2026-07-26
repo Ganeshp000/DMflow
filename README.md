@@ -84,49 +84,25 @@ Centralized lead management storing handles, captured emails, and DM interaction
 
 ---
 
-## Required APIs & Setup
+## What You Need to Use This App
 
-DMflow needs the following external services to run. All of them have free tiers that are enough for personal use.
+A short list of free accounts and tools required before getting started:
 
-> **⚠️ You must create your own accounts and API keys.** This repository does not include any working credentials. Each person who runs DMflow needs their own Meta Developer App, their own Supabase project, and their own Groq API key. You cannot reuse anyone else's keys — they are tied to your own Instagram Business account and database.
-
-### 1. Supabase (Database + Auth) — Free
-- What it's for: stores users, automations, conversations, messages, contacts, rewind jobs
-- Get it: supabase.com → New Project → Settings → API
-- You need: Project URL, anon public key, service_role key (keep this one secret)
-
-### 2. Meta Developer App — Instagram Business Login — Free
-- What it's for: connecting the user's Instagram account, receiving webhook events (comments/DMs/story mentions), sending automated replies
-- Get it: developers.facebook.com → Create App → add the "Instagram" product → "Instagram API with Instagram Login" (Business Login) — NOT Facebook Login, NOT Instagram Basic Display
-- You need: Instagram App ID, Instagram App Secret, a redirect URI matching your deployed domain (e.g. https://yourapp.com/api/auth/callback), and a Webhook Verify Token (any string you choose yourself)
-- Requires: the connected Instagram account must be a Business or Creator account, not personal
-- Note: webhooks need a public URL — for local dev, use a tunnel tool like ngrok or Cloudflare Tunnel to expose localhost, then use that tunnel URL as your webhook URL in the Meta app settings
-
-### 3. Groq API (AI Auto-Reply) — Free
-- What it's for: powers the AI catch-all reply feature (llama-3.1-8b-instant model)
-- Get it: console.groq.com → API Keys → Create Key
-- Optional: the app works without this, AI replies just won't fire and fall back to a default response
-
-### Environment Variables Summary
-Copy `.env.example` to `.env.local` and fill in:
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_INSTAGRAM_APP_ID`, `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI`, `INSTAGRAM_WEBHOOK_VERIFY_TOKEN`
-- `GROQ_API_KEY`
+- **A Supabase account (free)** — for database storage ([supabase.com](https://supabase.com))
+- **A Meta Developer account (free)** — for Instagram Graph API & Business Login ([developers.facebook.com](https://developers.facebook.com))
+- **A Groq account (free)** — for AI auto-replies (optional but recommended) ([console.groq.com](https://console.groq.com))
+- **[Node.js](https://nodejs.org/) installed on your computer** (v18 or higher)
+- **Basic comfort using a terminal** to run a few simple commands
 
 ---
 
-## 🚀 Getting Started
+## Running It Locally (For Testing/Development)
 
-### Prerequisites
-
-- Node.js 18+ and `npm`
-
-### Installation
+Follow these step-by-step instructions in order to run DMflow locally on your computer:
 
 1. **Clone the repository**:
    ```bash
-   git clone git@github.com:Ganeshp000/DMflow.git
-   cd DMflow
+   git clone https://github.com/Ganeshp000/DMflow.git && cd DMflow
    ```
 
 2. **Install dependencies**:
@@ -134,40 +110,95 @@ Copy `.env.example` to `.env.local` and fill in:
    npm install
    ```
 
-3. **Configure Environment Variables**:
-   Create a `.env.local` file in the root directory:
-   ```env
-   # Supabase Credentials
-   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-   # Instagram Meta Business Login API
-   NEXT_PUBLIC_INSTAGRAM_APP_ID=1234567890
-   INSTAGRAM_APP_ID=1234567890
-   INSTAGRAM_APP_SECRET=your_app_secret
-   NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI=http://localhost:3000/api/auth/callback
-   INSTAGRAM_WEBHOOK_VERIFY_TOKEN=dmflow_secret_token_123
-
-   # Groq AI API Key
-   GROQ_API_KEY=gsk_your_groq_api_key
+3. **Copy environment file**:
+   ```bash
+   cp .env.example .env.local
    ```
 
-4. **Run Development Server**:
+4. **Set up Supabase Database**:
+   - Create a free Supabase project at [supabase.com](https://supabase.com).
+   - Go to **Project Settings → API**.
+   - Copy your **Project URL**, **anon public key**, and **service_role key**.
+   - Paste them into `.env.local`:
+     ```env
+     NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+     NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+     SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+     ```
+
+5. **Run the Database Schema**:
+   - In your Supabase Dashboard, open the **SQL Editor**.
+   - Copy and run the SQL code from [`supabase/schema.sql`](./supabase/schema.sql) to set up all tables and security policies.
+
+6. **Create Meta Developer App**:
+   - Go to [developers.facebook.com](https://developers.facebook.com) and click **Create App**.
+   - Select product **Instagram** → choose **Instagram API with Instagram Login** (Business Login, NOT Facebook Login or Basic Display).
+   - Copy your **Instagram App ID** and **App Secret**.
+   - Paste them into `.env.local`:
+     ```env
+     NEXT_PUBLIC_INSTAGRAM_APP_ID=your_app_id
+     INSTAGRAM_APP_ID=your_app_id
+     INSTAGRAM_APP_SECRET=your_app_secret
+     INSTAGRAM_WEBHOOK_VERIFY_TOKEN=your_custom_secret_token
+     ```
+
+7. **Configure OAuth Redirect URI**:
+   - In Meta App Settings → Instagram Business Login Settings, add your local redirect URI:
+     `http://localhost:3000/api/auth/callback`
+
+8. **Add Groq AI Key (Optional)**:
+   - Create a free key at [console.groq.com](https://console.groq.com).
+   - Paste it into `.env.local`:
+     ```env
+     GROQ_API_KEY=gsk_your_groq_key
+     ```
+
+9. **Run the Development Server**:
    ```bash
    npm run dev
    ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+10. **Testing Webhooks Locally**:
+    - To receive real Instagram webhook events (comments/DMs/mentions) while running locally, you need a tunnel tool since Instagram cannot reach `localhost` directly:
+      - Install **[ngrok](https://ngrok.com/)** (or use Cloudflare Tunnel).
+      - Run `ngrok http 3000` and copy the `https://...` URL it generates.
+      - Set that URL + `/api/webhook/instagram` (e.g., `https://your-tunnel.ngrok-free.app/api/webhook/instagram`) as your **Webhook Callback URL** in Meta Developer App.
+      - Set your chosen **Webhook Verify Token** in both the Meta app dashboard and `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` in `.env.local`.
+      - *Note: Free ngrok URLs change on every restart, so you'll need to update the Meta app's Webhook Callback URL whenever you restart ngrok.*
 
 ---
 
-## 🌐 Local Development with Webhooks
+## Deploying It for Real (So It Runs 24/7, No Laptop Needed)
 
-Instagram webhooks require a publicly accessible HTTPS URL even during local testing. To test real Instagram comment, DM, and story mention events locally:
-1. Expose your local development server (`http://localhost:3000`) using a tunneling service like **ngrok** (`ngrok http 3000`) or **Cloudflare Tunnel** (`cloudflared tunnel --url http://localhost:3000`).
-2. Use the resulting HTTPS tunnel URL as your Webhook Callback URL in Meta Developer Dashboard (e.g. `https://your-tunnel.ngrok-free.app/api/webhook/instagram`).
-3. Set your custom verification token matching `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` in `.env.local`.
+Follow these steps to deploy DMflow to a permanent cloud host:
+
+1. **Push code to GitHub**:
+   - Push your code to your own GitHub repository (fork this repository or use your clone).
+
+2. **Connect to Vercel**:
+   - Create a free account at [vercel.com](https://vercel.com).
+   - Click **Add New Project** and import your GitHub repository.
+
+3. **Configure Environment Variables in Vercel**:
+   - In Vercel's Project Settings → Environment Variables, add all the variables from your `.env.local` file (Supabase keys, Instagram App ID/Secret, Groq key, Webhook verify token).
+
+4. **Deploy**:
+   - Click **Deploy**. Vercel will build the project and provide a permanent live URL like `your-app.vercel.app`.
+
+5. **Update Meta App URLs**:
+   - Return to your Meta Developer App Dashboard and update:
+     - **OAuth Redirect URI** → `https://your-app.vercel.app/api/auth/callback`
+     - **Webhook Callback URL** → `https://your-app.vercel.app/api/webhook/instagram`
+   - *(This replaces ngrok — no tunnel needed and no URL changes on restart!)*
+
+6. **Custom Domain (Optional)**:
+   - If you add a custom domain in Vercel (e.g. `yourdomain.com`), update the Meta App Redirect URI and Webhook Callback URL to use your custom domain.
+
+7. **Meta App Review & Production Mode**:
+   - While your Meta App is in **Development Mode**, only Instagram accounts added as Testers/Admins in your Meta App Dashboard can log in and automate DMs.
+   - To allow the general public to connect their own Instagram accounts to your hosted instance, submit your app for **Meta App Review** (requires a public privacy policy URL and permission request justification).
+   *Note: App Review is completely optional if you are running DMflow for your own personal accounts or team.*
 
 ---
 
@@ -185,4 +216,3 @@ DMflow automates Instagram DM and comment replies via the official Meta Graph AP
 ## 📄 License
 
 MIT License © 2026 DMflow — see [LICENSE](./LICENSE) for full text.
-
