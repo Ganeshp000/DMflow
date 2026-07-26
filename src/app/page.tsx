@@ -23,7 +23,7 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
   const instagramAuthUrl = getInstagramAuthUrl();
 
   return (
-    <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
+    <div style={{ position: "relative", minHeight: "100vh", overflowX: "hidden", overflowY: "auto" }}>
       {/* Background Glow Accents */}
       <div
         style={{
@@ -86,25 +86,27 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
           </span>
         </div>
 
-        <Link
-          href={instagramAuthUrl}
-          style={{
-            fontSize: "0.9rem",
-            fontWeight: "600",
-            padding: "8px 18px",
-            borderRadius: "9999px",
-            border: "1px solid var(--border-card)",
-            background: "rgba(255, 255, 255, 0.04)",
-            backdropFilter: "blur(10px)",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            transition: "all 0.2s ease",
-          }}
-        >
-          <Instagram size={16} />
-          Login with Instagram
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <Link
+            href="/api/auth/instagram"
+            style={{
+              fontSize: "0.9rem",
+              fontWeight: "600",
+              padding: "8px 18px",
+              borderRadius: "9999px",
+              border: "1px solid var(--border-card)",
+              background: "rgba(255, 255, 255, 0.04)",
+              backdropFilter: "blur(10px)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <Instagram size={16} />
+            Login with Instagram
+          </Link>
+        </div>
       </header>
 
       {/* Main Container */}
@@ -181,13 +183,24 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
             Instantly reply to comments, send automated DMs, and convert story replies effortlessly.
           </p>
 
-          {/* Connect Button */}
+          {/* Connect & Demo Buttons */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-            <a id="connect-instagram-btn" href={instagramAuthUrl} className="btn-ig-connect">
-              <Instagram size={22} />
-              Connect Instagram Account
-              <ArrowRight size={18} />
-            </a>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "14px" }}>
+              <Link id="connect-instagram-btn" href="/api/auth/instagram" className="btn-ig-connect">
+                <Instagram size={22} />
+                Connect Instagram Account
+                <ArrowRight size={18} />
+              </Link>
+
+              <Link
+                href="/api/auth/instagram?demo=true"
+                className="builder-btn-outline"
+                style={{ padding: "12px 24px", fontSize: "0.95rem", borderRadius: "9999px" }}
+              >
+                <Sparkles size={18} color="var(--accent-cyan)" />
+                Launch Demo Dashboard
+              </Link>
+            </div>
             
             <div style={{ display: "flex", alignItems: "center", gap: "24px", color: "var(--text-subtle)", fontSize: "0.85rem", marginTop: "8px" }}>
               <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
