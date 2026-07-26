@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendInstagramMessage, sendInstagramSenderAction } from "@/lib/instagram";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSessionUser } from "@/lib/session";
 
 export async function POST(request: NextRequest) {
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-    const { conversation_id, user_id, recipient_id, message_text } = body;
+    const { conversation_id, recipient_id, message_text } = body;
 
     if (!conversation_id || !recipient_id || !message_text) {
       return NextResponse.json({ error: "Missing required fields (conversation_id, recipient_id, message_text)" }, { status: 400 });
     }
 
-    const userId = user_id || "1784140982345678";
     const supabaseAdmin = createAdminClient();
 
-    let accessToken = "placeholder_access_token";
+    let accessToken = "";
     try {
       const { data } = await supabaseAdmin.from("users").select("access_token").eq("id", userId).single();
       if (data?.access_token) {
@@ -27,6 +32,7 @@ export async function POST(request: NextRequest) {
     // 1. Send sender action + Instagram Graph API message
     await sendInstagramSenderAction(recipient_id, "mark_seen", accessToken);
     const apiResult = await sendInstagramMessage(recipient_id, message_text, accessToken);
+    const sendStatus = apiResult.success ? "sent" : "failed";
 
     const messageId = `manual_out_${Date.now()}`;
     const newMsgObj = {
@@ -37,6 +43,7 @@ export async function POST(request: NextRequest) {
       recipient_id: recipient_id,
       message_text: message_text,
       direction: "outgoing",
+      send_status: sendStatus,
       created_at: new Date().toISOString(),
     };
 
@@ -53,6 +60,13 @@ export async function POST(request: NextRequest) {
       });
     } catch (dbErr) {
       console.warn("DB logging manual send exception:", dbErr);
+    }
+
+    if (!apiResult.success) {
+      return NextResponse.json(
+        { success: false, error: apiResult.error || "Failed to send message via Instagram API", message: newMsgObj },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({ success: true, message: newMsgObj, apiResult });

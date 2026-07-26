@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSessionUser } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const conversationId = searchParams.get("conversation_id");
 
@@ -15,38 +21,11 @@ export async function GET(request: NextRequest) {
       .from("messages")
       .select("*")
       .eq("conversation_id", conversationId)
+      .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
-    if (error || !data || data.length === 0) {
-      const parts = conversationId.split(":");
-      const userId = parts[0] || "1784140982345678";
-      const followerId = parts[1] || "follower_user_987654";
-
-      // Fallback thread messages for preview
-      return NextResponse.json({
-        messages: [
-          {
-            id: `msg_in_${Date.now() - 60000}`,
-            conversation_id: conversationId,
-            user_id: userId,
-            sender_id: followerId,
-            recipient_id: userId,
-            message_text: "hello there! Can you tell me about DMflow?",
-            direction: "incoming",
-            created_at: new Date(Date.now() - 60000).toISOString(),
-          },
-          {
-            id: `msg_out_${Date.now()}`,
-            conversation_id: conversationId,
-            user_id: userId,
-            sender_id: userId,
-            recipient_id: followerId,
-            message_text: "Automated Reply: Hello! 👋 Thanks for reaching out to DMflow. How can we help automate your Instagram growth today?",
-            direction: "outgoing",
-            created_at: new Date().toISOString(),
-          },
-        ],
-      });
+    if (error || !data) {
+      return NextResponse.json({ messages: [] });
     }
 
     return NextResponse.json({ messages: data });

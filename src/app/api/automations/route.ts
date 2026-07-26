@@ -1,36 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
-
-// In-memory fallback store when Supabase is not connected
-let inMemoryAutomations = [
-  {
-    id: "rule_demo_1",
-    name: "Comment → Instant Link DM",
-    trigger_source: "comment",
-    trigger_type: "keyword",
-    trigger_value: "link, shop",
-    response_content: { text: "Hey! 🚀 Here is the instant access link: https://dmflow.app/access" },
-    is_active: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "rule_demo_2",
-    name: "Lead Magnet PDF Delivery",
-    trigger_source: "comment",
-    trigger_type: "keyword",
-    trigger_value: "guide, pdf",
-    response_content: { text: "Thanks for checking out our guide! 🎁 Tap below to download:" },
-    is_active: true,
-    created_at: new Date().toISOString(),
-  },
-];
+import { getSessionUser } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get("user_id") || "1784140982345678";
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ automations: inMemoryAutomations });
+    return NextResponse.json({ automations: [] });
   }
 
   try {
@@ -41,17 +20,22 @@ export async function GET(request: NextRequest) {
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      return NextResponse.json({ automations: inMemoryAutomations });
+    if (error || !data) {
+      return NextResponse.json({ automations: [] });
     }
 
     return NextResponse.json({ automations: data });
   } catch {
-    return NextResponse.json({ automations: inMemoryAutomations });
+    return NextResponse.json({ automations: [] });
   }
 }
 
 export async function POST(request: NextRequest) {
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const {
@@ -72,10 +56,8 @@ export async function POST(request: NextRequest) {
       button_url,
       fallback_response_text,
       is_active = true,
-      user_id,
     } = body;
 
-    const userId = user_id || "1784140982345678";
     const ruleData = {
       user_id: userId,
       name: name || "New Automation",
@@ -98,16 +80,10 @@ export async function POST(request: NextRequest) {
     };
 
     if (!isSupabaseConfigured()) {
-      if (id) {
-        const idx = inMemoryAutomations.findIndex((a) => a.id === id);
-        if (idx !== -1) {
-          inMemoryAutomations[idx] = { ...inMemoryAutomations[idx], ...ruleData };
-          return NextResponse.json({ success: true, automation: inMemoryAutomations[idx] });
-        }
-      }
-      const newRule = { id: id || `rule_${Date.now()}`, ...ruleData, created_at: new Date().toISOString() };
-      inMemoryAutomations.unshift(newRule);
-      return NextResponse.json({ success: true, automation: newRule });
+      return NextResponse.json({
+        success: true,
+        automation: { id: id || `rule_${Date.now()}`, ...ruleData, created_at: new Date().toISOString() },
+      });
     }
 
     const supabaseAdmin = createAdminClient();
@@ -118,6 +94,7 @@ export async function POST(request: NextRequest) {
         .from("automations")
         .update(ruleData)
         .eq("id", id)
+        .eq("user_id", userId)
         .select()
         .single();
       if (!error) resultData = data;
@@ -141,6 +118,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const id = searchParams.get("id");
 
@@ -148,12 +130,10 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
 
-  inMemoryAutomations = inMemoryAutomations.filter((a) => a.id !== id);
-
   if (isSupabaseConfigured()) {
     try {
       const supabaseAdmin = createAdminClient();
-      await supabaseAdmin.from("automations").delete().eq("id", id);
+      await supabaseAdmin.from("automations").delete().eq("id", id).eq("user_id", userId);
     } catch { /* fallback */ }
   }
 

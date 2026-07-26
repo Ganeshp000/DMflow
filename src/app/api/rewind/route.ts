@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getInstagramMediaComments, sendInstagramMessage } from "@/lib/instagram";
+import { getSessionUser } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get("user_id") || "1784140982345678";
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const supabaseAdmin = createAdminClient();
@@ -14,99 +17,160 @@ export async function GET(request: NextRequest) {
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (error || !data || data.length === 0) {
+    if (error) {
       return NextResponse.json({ jobs: [] });
     }
 
-    return NextResponse.json({ jobs: data });
+    return NextResponse.json({ jobs: data || [] });
   } catch {
     return NextResponse.json({ jobs: [] });
   }
 }
 
 export async function POST(request: NextRequest) {
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-    const { automation_id, user_id } = body;
-    const userId = user_id || "1784140982345678";
+    const { automation_id } = body;
+    if (!automation_id) {
+      return NextResponse.json({ error: "Missing automation_id parameter" }, { status: 400 });
+    }
 
     const supabaseAdmin = createAdminClient();
 
     // 1. Fetch automation rule
-    let rule: any = null;
-    try {
-      const { data } = await supabaseAdmin
-        .from("automations")
-        .select("*")
-        .eq("id", automation_id)
-        .single();
-      rule = data;
-    } catch {
-      // Fallback
+    const { data: rule, error: ruleErr } = await supabaseAdmin
+      .from("automations")
+      .select("*")
+      .eq("id", automation_id)
+      .eq("user_id", userId)
+      .single();
+
+    if (ruleErr || !rule) {
+      return NextResponse.json({ error: "Automation rule not found" }, { status: 404 });
     }
 
-    const ruleName = rule?.name || "Comments → DM Rewind";
-    const mediaId = rule?.specific_media_id || "17998877665544332";
-    const keywords = (rule?.trigger_value || "app, link, repo").split(",").map((k: string) => k.trim().toLowerCase());
-    const dmText = rule?.response_content?.text || "Thanks for your comment! Here is the link requested ⚡";
+    const ruleName = rule.name || "Comments → DM Rewind";
+    const mediaId = rule.specific_media_id;
+    if (!mediaId) {
+      return NextResponse.json({ error: "Automation rule does not specify a target media ID for rewind" }, { status: 400 });
+    }
+
+    const keywords = (rule.trigger_value || "").split(",").map((k: string) => k.trim().toLowerCase());
+    const dmText = rule.response_content?.text || "Thanks for your comment!";
 
     // 2. Fetch User Access Token
-    let accessToken = "placeholder_access_token";
-    try {
-      const { data: userRec } = await supabaseAdmin.from("users").select("access_token").eq("id", userId).single();
-      if (userRec?.access_token) accessToken = userRec.access_token;
-    } catch {
-      // Fallback
+    const { data: userRec } = await supabaseAdmin
+      .from("users")
+      .select("access_token")
+      .eq("id", userId)
+      .single();
+
+    const accessToken = userRec?.access_token;
+    if (!accessToken) {
+      const jobObj = {
+        id: `rw_job_${Date.now()}`,
+        user_id: userId,
+        automation_id,
+        automation_name: ruleName,
+        status: "failed",
+        comments_scanned: 0,
+        dms_sent: 0,
+        created_at: new Date().toISOString(),
+      };
+      try {
+        await supabaseAdmin.from("rewind_jobs").insert(jobObj);
+      } catch {
+        // DB insert fallback
+      }
+      return NextResponse.json({
+        success: false,
+        job: jobObj,
+        error: "No valid Instagram access token found for user",
+      }, { status: 400 });
     }
 
-    // 3. Scan comments via Graph API
-    let commentsScanned = 15;
-    let dmsDispatched = 3;
+    // 3. Scan comments via Graph API (initialized to 0)
+    let commentsScanned = 0;
+    let dmsSent = 0;
+    let dmsFailed = 0;
 
+    let commentsData: any;
     try {
-      const commentsData = await getInstagramMediaComments(mediaId, accessToken);
-      if (commentsData?.data && Array.isArray(commentsData.data)) {
-        commentsScanned = commentsData.data.length;
-        let matchCount = 0;
+      commentsData = await getInstagramMediaComments(mediaId, accessToken);
+    } catch (graphErr: unknown) {
+      const errMsg = graphErr instanceof Error ? graphErr.message : "Failed to fetch comments from Instagram";
+      const failedJobObj = {
+        id: `rw_job_${Date.now()}`,
+        user_id: userId,
+        automation_id,
+        automation_name: ruleName,
+        status: "failed",
+        comments_scanned: 0,
+        dms_sent: 0,
+        created_at: new Date().toISOString(),
+      };
+      try {
+        await supabaseAdmin.from("rewind_jobs").insert(failedJobObj);
+      } catch {
+        // DB insert fallback
+      }
+      return NextResponse.json({
+        success: false,
+        job: failedJobObj,
+        error: `Rewind job failed: ${errMsg}`,
+      }, { status: 500 });
+    }
 
-        for (const commentObj of commentsData.data) {
-          const text = (commentObj.text || "").toLowerCase();
-          const isMatch = keywords.some((kw: string) => text.includes(kw));
-          const commenterId = commentObj.from?.id;
+    if (commentsData?.data && Array.isArray(commentsData.data)) {
+      commentsScanned = commentsData.data.length;
 
-          if (isMatch && commenterId) {
-            matchCount++;
-            await sendInstagramMessage(commenterId, dmText, accessToken);
+      for (const commentObj of commentsData.data) {
+        const text = (commentObj.text || "").toLowerCase();
+        const isMatch = keywords.some((kw: string) => kw && text.includes(kw));
+        const commenterId = commentObj.from?.id;
+
+        if (isMatch && commenterId) {
+          const sendRes = await sendInstagramMessage(commenterId, dmText, accessToken);
+          if (sendRes.success) {
+            dmsSent++;
+          } else {
+            dmsFailed++;
           }
         }
-        if (matchCount > 0) dmsDispatched = matchCount;
       }
-    } catch (graphErr) {
-      console.warn("[Rewind Graph API Warning] Using simulated scanner counts:", graphErr);
     }
 
-    // 4. Record job in `rewind_jobs` table
+    const jobStatus = dmsFailed > 0 ? "failed" : "completed";
+    const jobMessage = dmsFailed > 0
+      ? `Rewind completed with errors: ${commentsScanned} scanned, ${dmsSent} sent, ${dmsFailed} failed.`
+      : `Rewind completed! Scanned ${commentsScanned} comments and sent ${dmsSent} DMs.`;
+
     const jobObj = {
       id: `rw_job_${Date.now()}`,
       user_id: userId,
-      automation_id: automation_id || "rw_rule_1",
+      automation_id,
       automation_name: ruleName,
-      status: "completed",
+      status: jobStatus,
       comments_scanned: commentsScanned,
-      dms_sent: dmsDispatched,
+      dms_sent: dmsSent,
       created_at: new Date().toISOString(),
     };
 
     try {
       await supabaseAdmin.from("rewind_jobs").insert(jobObj);
     } catch {
-      // Fallback
+      // DB insert fallback
     }
 
     return NextResponse.json({
-      success: true,
+      success: jobStatus === "completed",
       job: jobObj,
-      message: `Rewind completed! Scanned ${commentsScanned} comments and sent ${dmsDispatched} DMs.`,
+      message: jobMessage,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to execute rewind job";

@@ -41,6 +41,12 @@ export interface InstagramMediaItem {
   timestamp?: string;
 }
 
+export interface InstagramApiResult {
+  success: boolean;
+  error?: string;
+  data?: unknown;
+}
+
 /**
  * Builds the Instagram Business OAuth Authorization URL
  */
@@ -148,22 +154,18 @@ export async function getInstagramUserProfile(accessToken: string): Promise<Inst
 export async function fetchUserInstagramMedia(accessToken: string): Promise<InstagramMediaItem[]> {
   const url = `https://graph.instagram.com/v24.0/me/media?fields=id,caption,media_type,thumbnail_url,permalink,timestamp&limit=20&access_token=${encodeURIComponent(accessToken)}`;
 
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    if (response.ok && Array.isArray(data.data)) {
-      return data.data;
-    }
-  } catch (err) {
-    console.warn("Failed to fetch user media from Graph API:", err);
+  const response = await fetch(url);
+  const data = await response.json();
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.message || "Failed to fetch user media from Instagram Graph API");
   }
 
-  // Fallback mock media items for preview / testing
-  return [
-    { id: "17998877665544332", caption: "🚀 Summer Automation Collection Launch (Reel)", media_type: "VIDEO", permalink: "https://instagram.com/p/demo1" },
-    { id: "18022334455667788", caption: "🔥 10 Instagram DM Growth Hacks for 2026", media_type: "IMAGE", permalink: "https://instagram.com/p/demo2" },
-    { id: "18033445566778899", caption: "💎 VIP Community Masterclass Signup", media_type: "CAROUSEL_ALBUM", permalink: "https://instagram.com/p/demo3" },
-  ];
+  if (Array.isArray(data.data)) {
+    return data.data;
+  }
+
+  throw new Error("Invalid response format from Instagram Graph API");
 }
 
 /**
@@ -172,21 +174,14 @@ export async function fetchUserInstagramMedia(accessToken: string): Promise<Inst
 export async function getInstagramMediaComments(mediaId: string, accessToken: string): Promise<any> {
   const url = `https://graph.instagram.com/v24.0/${mediaId}/comments?fields=id,text,from,timestamp&limit=50&access_token=${encodeURIComponent(accessToken)}`;
 
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    if (response.ok) return data;
-  } catch (err) {
-    console.warn("Failed to fetch media comments from Graph API:", err);
+  const response = await fetch(url);
+  const data = await response.json();
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.message || `Failed to fetch comments for media ${mediaId} from Instagram Graph API`);
   }
 
-  return {
-    data: [
-      { id: "c_demo_101", text: "Can you send the app link please?", from: { id: "follower_user_999", username: "alex_creator" } },
-      { id: "c_demo_102", text: "Commented repo for code!", from: { id: "follower_user_888", username: "sarah_influencer" } },
-      { id: "c_demo_103", text: "Great post!", from: { id: "follower_user_777", username: "dev_founder" } },
-    ],
-  };
+  return data;
 }
 
 /**
@@ -196,7 +191,7 @@ export async function replyToInstagramComment(
   commentId: string,
   text: string,
   accessToken: string
-): Promise<unknown> {
+): Promise<InstagramApiResult> {
   const params = new URLSearchParams({
     message: text,
     access_token: accessToken,
@@ -208,13 +203,16 @@ export async function replyToInstagramComment(
   try {
     const response = await fetch(url, { method: "POST" });
     const data = await response.json();
-    if (!response.ok) {
-      console.warn("[Instagram API Comment Reply Warning]:", data);
+    if (!response.ok || data.error) {
+      const errMsg = data.error?.message || `Instagram API error (${response.status})`;
+      console.warn("[Instagram API Comment Reply Error]:", errMsg, data);
+      return { success: false, error: errMsg, data };
     }
-    return data;
+    return { success: true, data };
   } catch (err) {
-    console.warn("[Instagram API Comment Reply Exception]:", err);
-    return { id: `sim_reply_${Date.now()}`, simulated: true };
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn("[Instagram API Comment Reply Exception]:", errMsg);
+    return { success: false, error: errMsg };
   }
 }
 
@@ -225,7 +223,7 @@ export async function sendInstagramSenderAction(
   recipientId: string,
   senderAction: "mark_seen" | "typing_on" | "typing_off",
   accessToken: string
-): Promise<unknown> {
+): Promise<InstagramApiResult> {
   const url = `https://graph.instagram.com/v24.0/me/messages?access_token=${encodeURIComponent(accessToken)}`;
   const payload = {
     recipient: { id: recipientId },
@@ -240,13 +238,16 @@ export async function sendInstagramSenderAction(
     });
 
     const data = await response.json();
-    if (!response.ok) {
-      console.warn(`[Instagram API Warning] Sender action '${senderAction}' response:`, data);
+    if (!response.ok || data.error) {
+      const errMsg = data.error?.message || `Instagram API error (${response.status})`;
+      console.warn(`[Instagram API Error] Sender action '${senderAction}':`, errMsg, data);
+      return { success: false, error: errMsg, data };
     }
-    return data;
+    return { success: true, data };
   } catch (err) {
-    console.warn(`[Instagram API Exception] Failed to send '${senderAction}':`, err);
-    return { recipient_id: recipientId, sender_action: senderAction, simulated: true };
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn(`[Instagram API Exception] Failed to send '${senderAction}':`, errMsg);
+    return { success: false, error: errMsg };
   }
 }
 
@@ -257,7 +258,7 @@ export async function sendInstagramMessage(
   recipientId: string,
   text: string,
   accessToken: string
-): Promise<unknown> {
+): Promise<InstagramApiResult> {
   const url = `https://graph.instagram.com/v24.0/me/messages?access_token=${encodeURIComponent(accessToken)}`;
   const payload = {
     recipient: { id: recipientId },
@@ -274,12 +275,15 @@ export async function sendInstagramMessage(
     });
 
     const data = await response.json();
-    if (!response.ok) {
-      console.warn("[Instagram API Outbound Message Warning]:", data);
+    if (!response.ok || data.error) {
+      const errMsg = data.error?.message || `Instagram API error (${response.status})`;
+      console.warn("[Instagram API Outbound Message Error]:", errMsg, data);
+      return { success: false, error: errMsg, data };
     }
-    return data;
+    return { success: true, data };
   } catch (err) {
-    console.warn("[Instagram API Outbound Message Exception]:", err);
-    return { recipient_id: recipientId, message_id: `sim_mid_${Date.now()}`, simulated: true };
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn("[Instagram API Outbound Message Exception]:", errMsg);
+    return { success: false, error: errMsg };
   }
 }

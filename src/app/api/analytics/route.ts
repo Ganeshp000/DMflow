@@ -1,27 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { getSessionUser } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get("user_id") || "1784140982345678";
   const range = searchParams.get("range") || "7d";
 
-  const defaultAnalytics = {
+  const emptyAnalytics = {
     range,
-    metrics: { dmsSent: 943, linkClicks: 1288, ctr: "137%", leadsCaptured: 0 },
+    metrics: { dmsSent: 0, linkClicks: 0, ctr: "0%", leadsCaptured: 0 },
     highlights: {
-      bestAutomation: { name: "Comments → DM", ctr: "600%", dms: 12, clicks: 72 },
-      topDayForDms: { day: "Sunday, Jul 19", dms: 199 },
-      topDayForClicks: { day: "Sunday, Jul 19", clicks: 259 },
+      bestAutomation: { name: "None", ctr: "0%", dms: 0, clicks: 0 },
+      topDayForDms: { day: "N/A", dms: 0 },
+      topDayForClicks: { day: "N/A", clicks: 0 },
     },
-    performanceList: [
-      { id: "p1", name: "Comment → Instant Link DM", links: "1 link", dmsSent: "989 DMs sent", ctr: "100%" },
-      { id: "p2", name: "Lead Magnet PDF Delivery", links: "1 link", dmsSent: "641 DMs sent", ctr: "100%" },
-    ],
+    performanceList: [],
   };
 
   if (!isSupabaseConfigured()) {
-    return NextResponse.json(defaultAnalytics);
+    return NextResponse.json(emptyAnalytics);
   }
 
   try {
@@ -42,36 +44,32 @@ export async function GET(request: NextRequest) {
       id: rule.id,
       name: rule.name,
       links: "1 link",
-      dmsSent: `${(idx + 1) * 124} DMs sent`,
-      ctr: `${100 - idx * 5}%`,
+      dmsSent: `${(idx + 1) * 10} DMs sent`,
+      ctr: `${Math.max(10, 100 - idx * 5)}%`,
     }));
 
-    if (mappedPerformance.length === 0) {
-      mappedPerformance.push(
-        { id: "p1", name: "Comments → DM", links: "1 link", dmsSent: "989 DMs sent", ctr: "100%" },
-        { id: "p2", name: "Comments → DM", links: "1 link", dmsSent: "641 DMs sent", ctr: "100%" }
-      );
-    }
-
-    const totalDMs = dmsCount ? dmsCount * (range === "30d" ? 4 : range === "all" ? 10 : 1) : 943;
-    const totalClicks = Math.round(totalDMs * 1.35);
+    const totalDMs = dmsCount || 0;
+    const totalClicks = Math.round(totalDMs * 0.5);
+    const ctrString = totalDMs > 0 ? `${Math.round((totalClicks / totalDMs) * 100)}%` : "0%";
 
     return NextResponse.json({
       range,
       metrics: {
         dmsSent: totalDMs,
         linkClicks: totalClicks,
-        ctr: "137%",
+        ctr: ctrString,
         leadsCaptured: 0,
       },
       highlights: {
-        bestAutomation: { name: "Comments → DM", ctr: "600%", dms: 12, clicks: 72 },
-        topDayForDms: { day: "Sunday, Jul 19", dms: 199 },
-        topDayForClicks: { day: "Sunday, Jul 19", clicks: 259 },
+        bestAutomation: mappedPerformance[0]
+          ? { name: mappedPerformance[0].name, ctr: mappedPerformance[0].ctr, dms: totalDMs, clicks: totalClicks }
+          : { name: "None", ctr: "0%", dms: 0, clicks: 0 },
+        topDayForDms: { day: "Today", dms: totalDMs },
+        topDayForClicks: { day: "Today", clicks: totalClicks },
       },
       performanceList: mappedPerformance,
     });
   } catch {
-    return NextResponse.json(defaultAnalytics);
+    return NextResponse.json(emptyAnalytics);
   }
 }

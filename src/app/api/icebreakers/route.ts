@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSessionUser } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get("user_id") || "1784140982345678";
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const supabaseAdmin = createAdminClient();
@@ -13,59 +16,30 @@ export async function GET(request: NextRequest) {
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      return NextResponse.json({
-        ice_breakers: [
-          {
-            id: "ice_1",
-            user_id: userId,
-            question: "What are your VIP pricing plans?",
-            payload: "pricing",
-            response_text: "Our VIP membership is $29/mo with unlimited DM automations and comment triggers!",
-            is_active: true,
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: "ice_2",
-            user_id: userId,
-            question: "How do I connect my Instagram account?",
-            payload: "connect_help",
-            response_text: "Simply click 'Connect Instagram' on the home page and authorize your Professional account via Meta Business Login.",
-            is_active: true,
-            created_at: new Date().toISOString(),
-          },
-        ],
-      });
+    if (error || !data) {
+      return NextResponse.json({ ice_breakers: [] });
     }
 
     return NextResponse.json({ ice_breakers: data });
   } catch {
-    return NextResponse.json({
-      ice_breakers: [
-        {
-          id: "ice_1",
-          user_id: userId,
-          question: "What are your VIP pricing plans?",
-          payload: "pricing",
-          response_text: "Our VIP membership is $29/mo with unlimited DM automations and comment triggers!",
-          is_active: true,
-          created_at: new Date().toISOString(),
-        },
-      ],
-    });
+    return NextResponse.json({ ice_breakers: [] });
   }
 }
 
 export async function POST(request: NextRequest) {
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-    const { user_id, question, payload, response_text, is_active } = body;
+    const { question, payload, response_text, is_active } = body;
 
     if (!question || !response_text) {
       return NextResponse.json({ error: "Missing required fields (question, response_text)" }, { status: 400 });
     }
 
-    const userId = user_id || "1784140982345678";
     const itemObj = {
       id: `ice_${Date.now()}`,
       user_id: userId,
@@ -94,6 +68,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const id = searchParams.get("id");
 
@@ -103,9 +82,9 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const supabaseAdmin = createAdminClient();
-    await supabaseAdmin.from("ice_breakers").delete().eq("id", id);
+    await supabaseAdmin.from("ice_breakers").delete().eq("id", id).eq("user_id", userId);
     return NextResponse.json({ success: true, message: "Ice breaker deleted" });
   } catch {
-    return NextResponse.json({ success: true, message: "Ice breaker deleted (simulated)" });
+    return NextResponse.json({ success: true, message: "Ice breaker deleted" });
   }
 }

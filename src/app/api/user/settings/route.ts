@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSessionUser } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get("user_id") || "1784140982345678";
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const supabaseAdmin = createAdminClient();
@@ -15,21 +18,25 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       groq_api_key: data?.groq_api_key || "",
-      ai_context: data?.ai_context || "We are a high-growth brand. Be helpful, concise, and friendly in DMs.",
+      ai_context: data?.ai_context || "",
     });
   } catch {
     return NextResponse.json({
       groq_api_key: "",
-      ai_context: "We are a high-growth brand. Be helpful, concise, and friendly in DMs.",
+      ai_context: "",
     });
   }
 }
 
 export async function POST(request: NextRequest) {
+  const userId = getSessionUser(request);
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-    const { user_id, groq_api_key, ai_context } = body;
-    const userId = user_id || "1784140982345678";
+    const { groq_api_key, ai_context } = body;
 
     const supabaseAdmin = createAdminClient();
     const { error } = await supabaseAdmin.from("users").upsert(

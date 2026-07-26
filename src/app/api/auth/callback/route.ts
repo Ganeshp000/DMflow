@@ -69,10 +69,17 @@ export async function GET(request: NextRequest) {
       );
 
       if (dbError) {
-        console.error("Supabase upsert warning:", dbError.message);
+        console.error("Supabase user upsert error:", dbError.message);
+        return NextResponse.redirect(
+          `${baseUrl}/?auth_error=${encodeURIComponent(`Failed to save user account to database: ${dbError.message}`)}`
+        );
       }
-    } catch (dbEx) {
-      console.warn("Database operation bypassed (check Supabase configuration):", dbEx);
+    } catch (dbEx: unknown) {
+      const msg = dbEx instanceof Error ? dbEx.message : "Database connection failure";
+      console.error("Database operation failed:", msg);
+      return NextResponse.redirect(
+        `${baseUrl}/?auth_error=${encodeURIComponent(`Database error during user save: ${msg}`)}`
+      );
     }
 
     // 5. Set session cookie and redirect to /dashboard

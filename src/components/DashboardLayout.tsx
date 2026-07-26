@@ -30,8 +30,8 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({
   children,
-  username = "iamganiofficial",
-  userId = "1784140982345678",
+  username = "User",
+  userId,
 }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [contentOpen, setContentOpen] = useState(true);

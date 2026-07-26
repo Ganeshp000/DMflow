@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 
 // In-memory cache for mapping target account IDs to Supabase user IDs
 const accountMappingCache = new Map<string, string>();
@@ -30,7 +30,8 @@ function extractAllIdsFromPayload(obj: unknown, set: Set<string> = new Set()): S
 }
 
 /**
- * Identity Resolver: Maps incoming webhook target account ID to Supabase user account
+ * Identity Resolver: Maps incoming webhook target account ID to Supabase user account.
+ * Returns the resolved user ID string, or null if no matching user account exists.
  */
 export async function resolveUserId(targetAccountId: string, payload: unknown): Promise<string | null> {
   if (!targetAccountId) return null;
@@ -39,6 +40,8 @@ export async function resolveUserId(targetAccountId: string, payload: unknown): 
   if (accountMappingCache.has(targetAccountId)) {
     return accountMappingCache.get(targetAccountId)!;
   }
+
+  if (!isSupabaseConfigured()) return null;
 
   const supabaseAdmin = createAdminClient();
 
@@ -107,7 +110,6 @@ export async function resolveUserId(targetAccountId: string, payload: unknown): 
     console.warn("Graph API fallback resolution exception:", err);
   }
 
-  // If no user found in DB or Graph API, fallback to using targetAccountId directly
-  accountMappingCache.set(targetAccountId, targetAccountId);
-  return targetAccountId;
+  // If no user found in DB or Graph API, return null (do not fake resolution)
+  return null;
 }

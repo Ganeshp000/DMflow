@@ -140,6 +140,7 @@ async function processDirectMessageAutomation(userId: string, messaging: any) {
       recipient_id: recipientId || userId,
       message_text: messageText,
       direction: "incoming",
+      send_status: "sent",
       created_at: new Date().toISOString(),
     });
   } catch (dbErr) {
@@ -160,20 +161,8 @@ async function processDirectMessageAutomation(userId: string, messaging: any) {
   }
 
   if (automations.length === 0) {
-    automations = [
-      {
-        id: "default_rule_ai_catchall",
-        name: "AI Smart Assistant Catch-All",
-        trigger_source: "dm",
-        trigger_type: "ai",
-        trigger_value: "*",
-        is_ai_enabled: true,
-        ai_model: "llama-3.1-8b-instant",
-        max_response_length: 250,
-        fallback_response_text: "Thanks for reaching out to DMflow! How can our AI assistant help you today?",
-        response_content: { text: "AI Response" },
-      },
-    ];
+    console.log(`no matching automation configured for user ${userId}`);
+    return;
   }
 
   const normalizedMsg = messageText.toLowerCase();
@@ -204,7 +193,7 @@ async function processDirectMessageAutomation(userId: string, messaging: any) {
   let isAiReply = false;
 
   // Retrieve user access token & AI context settings
-  let accessToken = "placeholder_access_token";
+  let accessToken = "";
   let groqApiKey = process.env.GROQ_API_KEY || "";
   let aiContext = "We are a premium brand selling products and services. Be helpful and friendly.";
 
@@ -258,7 +247,7 @@ async function processDirectMessageAutomation(userId: string, messaging: any) {
       fallbackResponse: aiRule.fallback_response_text || "Thanks for your message! Our team will get back to you shortly.",
     });
   } else {
-    console.log(`ℹ️ No automation or AI rule matched for incoming text: "${messageText}"`);
+    console.log(`no matching automation configured for user ${userId}`);
     return;
   }
 
@@ -266,7 +255,12 @@ async function processDirectMessageAutomation(userId: string, messaging: any) {
   await sendInstagramSenderAction(senderId, "mark_seen", accessToken);
 
   // 6. Send DM via Instagram Graph API
-  await sendInstagramMessage(senderId, finalResponseText, accessToken);
+  const sendRes = await sendInstagramMessage(senderId, finalResponseText, accessToken);
+  const sendStatus = sendRes.success ? "sent" : "failed";
+
+  if (!sendRes.success) {
+    console.error(`❌ [Webhook DM Send Failed] User: ${userId}, Recipient: ${senderId}, Error: ${sendRes.error}`);
+  }
 
   // 7. Log outgoing response to `conversations` + `messages`
   try {
@@ -279,6 +273,7 @@ async function processDirectMessageAutomation(userId: string, messaging: any) {
       recipient_id: senderId,
       message_text: finalResponseText,
       direction: "outgoing",
+      send_status: sendStatus,
       created_at: new Date().toISOString(),
     });
 
@@ -321,18 +316,8 @@ async function processCommentAutomation(userId: string, changeValue: any) {
   }
 
   if (automations.length === 0) {
-    automations = [
-      {
-        id: "default_comment_rule",
-        name: "Reel Comment Auto-DM & Public Reply",
-        trigger_source: "comment",
-        trigger_value: "link, send, info, price, guide",
-        reply_mode: "both",
-        specific_media_id: null,
-        response_content: { text: "Hey! 🚀 Here is the instant access link: https://example.com/checkout" },
-        public_response_content: { text: `Check your DMs @${commenterUsername}! 📩 Sent you the link.` },
-      },
-    ];
+    console.log(`no matching automation configured for user ${userId}`);
+    return;
   }
 
   const normalizedComment = commentText.toLowerCase();
@@ -353,13 +338,13 @@ async function processCommentAutomation(userId: string, changeValue: any) {
   }
 
   if (!matchedRule) {
-    console.log(`ℹ️ No comment automation keyword matched for comment: "${commentText}" on media ${mediaId}`);
+    console.log(`no matching automation configured for user ${userId}`);
     return;
   }
 
   console.log(`🤖 [COMMENT AUTOMATION MATCHED] Rule: "${matchedRule.name}" on Media: ${mediaId} | Comment: "${commentText}"`);
 
-  let accessToken = "placeholder_access_token";
+  let accessToken = "";
   try {
     const { data: userRec } = await supabaseAdmin.from("users").select("access_token").eq("id", userId).single();
     if (userRec?.access_token) {
@@ -373,13 +358,21 @@ async function processCommentAutomation(userId: string, changeValue: any) {
 
   if (replyMode === "public_only" || replyMode === "both") {
     const publicText = matchedRule.public_response_content?.text || `Check your DMs! 📩`;
-    await replyToInstagramComment(commentId, publicText, accessToken);
+    const replyRes = await replyToInstagramComment(commentId, publicText, accessToken);
+    if (!replyRes.success) {
+      console.error(`❌ [Webhook Comment Reply Failed] Comment: ${commentId}, Error: ${replyRes.error}`);
+    }
   }
 
   if ((replyMode === "dm_only" || replyMode === "both") && commenterId) {
     const dmText = matchedRule.response_content?.text || "Thanks for commenting!";
     await sendInstagramSenderAction(commenterId, "mark_seen", accessToken);
-    await sendInstagramMessage(commenterId, dmText, accessToken);
+    const sendRes = await sendInstagramMessage(commenterId, dmText, accessToken);
+    const sendStatus = sendRes.success ? "sent" : "failed";
+
+    if (!sendRes.success) {
+      console.error(`❌ [Webhook Comment DM Send Failed] Recipient: ${commenterId}, Error: ${sendRes.error}`);
+    }
 
     try {
       const conversationId = `${userId}:${commenterId}`;
@@ -401,6 +394,7 @@ async function processCommentAutomation(userId: string, changeValue: any) {
         recipient_id: commenterId,
         message_text: dmText,
         direction: "outgoing",
+        send_status: sendStatus,
         created_at: new Date().toISOString(),
       });
     } catch (dbErr) {
@@ -434,21 +428,14 @@ async function processStoryMentionAutomation(userId: string, changeValue: any) {
   }
 
   if (automations.length === 0) {
-    automations = [
-      {
-        id: "default_story_mention_rule",
-        name: "Story Mention Instant VIP Gift",
-        trigger_source: "story",
-        trigger_value: "*",
-        response_content: { text: `Thanks for featuring us in your Story @${username}! 🎁 Here is a 20% OFF VIP voucher: https://example.com/vip-story-gift` },
-      },
-    ];
+    console.log(`no matching automation configured for user ${userId}`);
+    return;
   }
 
   const matchedRule = automations[0];
   console.log(`🤖 [STORY MENTION AUTOMATION MATCHED] Rule: "${matchedRule.name}" for User: @${username}`);
 
-  let accessToken = "placeholder_access_token";
+  let accessToken = "";
   try {
     const { data: userRec } = await supabaseAdmin.from("users").select("access_token").eq("id", userId).single();
     if (userRec?.access_token) {
@@ -460,7 +447,39 @@ async function processStoryMentionAutomation(userId: string, changeValue: any) {
 
   const responseText = matchedRule.response_content?.text || "Thanks for mentioning us in your Story!";
   await sendInstagramSenderAction(commenterId, "mark_seen", accessToken);
-  await sendInstagramMessage(commenterId, responseText, accessToken);
+  const sendRes = await sendInstagramMessage(commenterId, responseText, accessToken);
+  const sendStatus = sendRes.success ? "sent" : "failed";
+
+  if (!sendRes.success) {
+    console.error(`❌ [Webhook Story DM Send Failed] Recipient: ${commenterId}, Error: ${sendRes.error}`);
+  }
+
+  try {
+    const conversationId = `${userId}:${commenterId}`;
+    await supabaseAdmin.from("conversations").upsert({
+      id: conversationId,
+      user_id: userId,
+      follower_id: commenterId,
+      follower_username: username,
+      last_message: responseText,
+      last_message_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    await supabaseAdmin.from("messages").insert({
+      id: `story_dm_${Date.now()}`,
+      conversation_id: conversationId,
+      user_id: userId,
+      sender_id: userId,
+      recipient_id: commenterId,
+      message_text: responseText,
+      direction: "outgoing",
+      send_status: sendStatus,
+      created_at: new Date().toISOString(),
+    });
+  } catch (dbErr) {
+    console.warn("DB logging story mention DM error:", dbErr);
+  }
 }
 
 /**
@@ -489,7 +508,11 @@ export async function POST(request: NextRequest) {
   const targetAccountId = entry?.id || "";
 
   // Step 2: Resolve user identity
-  const resolvedUserId = (await resolveUserId(targetAccountId, payload)) || "1784140982345678";
+  const resolvedUserId = await resolveUserId(targetAccountId, payload);
+  if (!resolvedUserId) {
+    console.log("unresolved account — check Instagram App connection");
+    return new NextResponse("EVENT_RECEIVED", { status: 200 });
+  }
 
   // Step 3: Classify event & log to console
   const { eventType, summary } = determineEventType(payload);
