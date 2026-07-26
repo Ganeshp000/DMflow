@@ -60,6 +60,35 @@ Inspired by ElevenLabs' quietly editorial print magazine design system (off-whit
 
 ---
 
+## Required APIs & Setup
+
+DMflow needs the following external services to run. All of them have free tiers that are enough for personal use.
+
+### 1. Supabase (Database + Auth) — Free
+- What it's for: stores users, automations, conversations, messages, contacts, rewind jobs
+- Get it: supabase.com → New Project → Settings → API
+- You need: Project URL, anon public key, service_role key (keep this one secret)
+
+### 2. Meta Developer App — Instagram Business Login — Free
+- What it's for: connecting the user's Instagram account, receiving webhook events (comments/DMs/story mentions), sending automated replies
+- Get it: developers.facebook.com → Create App → add the "Instagram" product → "Instagram API with Instagram Login" (Business Login) — NOT Facebook Login, NOT Instagram Basic Display
+- You need: Instagram App ID, Instagram App Secret, a redirect URI matching your deployed domain (e.g. https://yourapp.com/api/auth/callback), and a Webhook Verify Token (any string you choose yourself)
+- Requires: the connected Instagram account must be a Business or Creator account, not personal
+- Note: webhooks need a public URL — for local dev, use a tunnel tool like ngrok or Cloudflare Tunnel to expose localhost, then use that tunnel URL as your webhook URL in the Meta app settings
+
+### 3. Groq API (AI Auto-Reply) — Free
+- What it's for: powers the AI catch-all reply feature (llama-3.1-8b-instant model)
+- Get it: console.groq.com → API Keys → Create Key
+- Optional: the app works without this, AI replies just won't fire and fall back to a default response
+
+### Environment Variables Summary
+Copy `.env.example` to `.env.local` and fill in:
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_INSTAGRAM_APP_ID`, `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI`, `INSTAGRAM_WEBHOOK_VERIFY_TOKEN`
+- `GROQ_API_KEY`
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -82,7 +111,7 @@ Inspired by ElevenLabs' quietly editorial print magazine design system (off-whit
 3. **Configure Environment Variables**:
    Create a `.env.local` file in the root directory:
    ```env
-   # Supabase Credentials (optional for mock mode)
+   # Supabase Credentials
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
@@ -104,6 +133,15 @@ Inspired by ElevenLabs' quietly editorial print magazine design system (off-whit
    ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## 🌐 Local Development with Webhooks
+
+Instagram webhooks require a publicly accessible HTTPS URL even during local testing. To test real Instagram comment, DM, and story mention events locally:
+1. Expose your local development server (`http://localhost:3000`) using a tunneling service like **ngrok** (`ngrok http 3000`) or **Cloudflare Tunnel** (`cloudflared tunnel --url http://localhost:3000`).
+2. Use the resulting HTTPS tunnel URL as your Webhook Callback URL in Meta Developer Dashboard (e.g. `https://your-tunnel.ngrok-free.app/api/webhook/instagram`).
+3. Set your custom verification token matching `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` in `.env.local`.
 
 ---
 
