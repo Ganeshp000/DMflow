@@ -64,6 +64,8 @@ Inspired by ElevenLabs' quietly editorial print magazine design system (off-whit
 
 DMflow needs the following external services to run. All of them have free tiers that are enough for personal use.
 
+> **⚠️ You must create your own accounts and API keys.** This repository does not include any working credentials. Each person who runs DMflow needs their own Meta Developer App, their own Supabase project, and their own Groq API key. You cannot reuse anyone else's keys — they are tied to your own Instagram Business account and database.
+
 ### 1. Supabase (Database + Auth) — Free
 - What it's for: stores users, automations, conversations, messages, contacts, rewind jobs
 - Get it: supabase.com → New Project → Settings → API
@@ -145,6 +147,18 @@ Instagram webhooks require a publicly accessible HTTPS URL even during local tes
 
 ---
 
+## ⚖️ Responsible Use
+
+DMflow automates Instagram DM and comment replies via the official Meta Graph API. Please use it responsibly:
+
+- **Respect Instagram's rate limits.** The Instagram Messaging API has platform-enforced rate limits (typically ~200 API calls per user per hour). DMflow does not override or bypass these. If you hit a rate limit, the API will return an error and DMflow will log it honestly as a failed send.
+- **Only automate accounts you own.** The OAuth flow ensures you can only connect your own Instagram Business or Creator accounts.
+- **Don't use this for spam.** Sending unsolicited bulk messages violates Instagram's Terms of Service and can get your account restricted or banned. DMflow is designed for responding to people who engage with your content first (comments, DMs, story mentions).
+- **Review Meta's Platform Terms** at [developers.facebook.com/terms](https://developers.facebook.com/terms/) before deploying to production.
+
+---
+
 ## 📄 License
 
-MIT License © 2026 DMflow
+MIT License © 2026 DMflow — see [LICENSE](./LICENSE) for full text.
+
