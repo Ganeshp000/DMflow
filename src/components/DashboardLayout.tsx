@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   Zap,
@@ -34,6 +34,7 @@ export function DashboardLayout({
   userId,
 }: DashboardLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [contentOpen, setContentOpen] = useState(true);
   const [analyticsOpen, setAnalyticsOpen] = useState(true);
 
@@ -45,6 +46,10 @@ export function DashboardLayout({
   const fetchStats = async () => {
     try {
       const res = await fetch("/api/stats");
+      if (res.status === 401) {
+        router.push("/");
+        return;
+      }
       const data = await res.json();
       if (data && typeof data.dms_sent === "number") {
         setStats({
