@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = createAdminClient();
     let resultData = null;
 
-    if (id && !id.startsWith("rule_demo")) {
+    if (id) {
       const { data, error } = await supabaseAdmin
         .from("automations")
         .update(ruleData)

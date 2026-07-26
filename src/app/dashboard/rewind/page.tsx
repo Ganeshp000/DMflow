@@ -49,10 +49,7 @@ export default function RewindPage() {
             status: a.is_active ? "Active" : "Paused",
           }));
 
-        setAutomations(commentRules.length > 0 ? commentRules : [
-          { id: "rw_1", name: "Comments → DM", details: "Keywords: 'app' +4 · DM: 'food delivery app code link ⚡'", status: "Paused" },
-          { id: "rw_2", name: "Comments → DM", details: "Keywords: 'link' +4 · DM: 'github link ⚡'", status: "Active" },
-        ]);
+        setAutomations(commentRules);
 
         if (commentRules.length > 0 && !selectedId) {
           setSelectedId(commentRules[0].id);
@@ -244,7 +241,12 @@ export default function RewindPage() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {automations.map((item) => {
+            {automations.length === 0 ? (
+              <div className="glass-card" style={{ padding: "30px 24px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                No comment-to-DM automations configured yet. Create a comment automation rule first to use Rewind.
+              </div>
+            ) : (
+              automations.map((item) => {
               const isSelected = selectedId === item.id;
               return (
                 <div
@@ -280,7 +282,7 @@ export default function RewindPage() {
                   </span>
                 </div>
               );
-            })}
+            }))}
           </div>
         </section>
 

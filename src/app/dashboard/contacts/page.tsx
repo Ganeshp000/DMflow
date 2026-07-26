@@ -33,19 +33,14 @@ export default function ContactsPage() {
         const mapped = data.conversations.map((c: any, idx: number) => ({
           id: c.id,
           username: c.follower_username || c.follower_id || `user_${idx + 1}`,
-          email: c.follower_email || `${c.follower_id || "user"}@instagram.lead`,
-          dmsCount: Math.floor(Math.random() * 15) + 3,
+          email: c.follower_email || "",
+          dmsCount: 1,
           firstContact: new Date(c.updated_at || Date.now()).toISOString().split("T")[0],
           lastActive: "Recently",
         }));
         setContacts(mapped);
       } else {
-        setContacts([
-          { id: "c1", username: "alex_creator_77", email: "alex@creator.io", dmsCount: 12, firstContact: "2026-07-20", lastActive: "10 mins ago" },
-          { id: "c2", username: "sarah_influencer", email: "sarah@beautybrand.com", dmsCount: 8, firstContact: "2026-07-18", lastActive: "2 hours ago" },
-          { id: "c3", username: "dev_founder_99", email: "founder@startup.co", dmsCount: 24, firstContact: "2026-07-15", lastActive: "1 day ago" },
-          { id: "c4", username: "john_marketer", email: "john@marketing.org", dmsCount: 5, firstContact: "2026-07-12", lastActive: "3 days ago" },
-        ]);
+        setContacts([]);
       }
     } catch {
       // Fallback

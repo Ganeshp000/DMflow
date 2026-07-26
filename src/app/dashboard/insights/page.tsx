@@ -15,8 +15,8 @@ interface CommenterLeader {
 export default function AudienceInsightsPage() {
   const [selectedGroup, setSelectedGroup] = useState("all");
   const [leaderboard, setLeaderboard] = useState<CommenterLeader[]>([]);
-  const [totalComments, setTotalComments] = useState(2840);
-  const [uniqueCommenters, setUniqueCommenters] = useState(1420);
+  const [totalComments, setTotalComments] = useState(0);
+  const [uniqueCommenters, setUniqueCommenters] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const fetchInsights = async () => {
@@ -156,6 +156,8 @@ export default function AudienceInsightsPage() {
                 <tbody>
                   {loading ? (
                     <tr><td colSpan={5} style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)" }}>Loading insights...</td></tr>
+                  ) : leaderboard.length === 0 ? (
+                    <tr><td colSpan={5} style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)" }}>No audience comment data yet — top commenters will appear here as automations trigger.</td></tr>
                   ) : (
                     leaderboard.map((item) => (
                       <tr key={item.rank} style={{ borderBottom: "1px solid var(--border-card)" }}>

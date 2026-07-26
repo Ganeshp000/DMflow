@@ -68,6 +68,8 @@ function BuilderContent() {
   const [deploySuccess, setDeploySuccess] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<boolean>(true);
 
+  const [username, setUsername] = useState<string>("your_account");
+
   const fetchMedia = async () => {
     try {
       const res = await fetch("/api/instagram/media");
@@ -76,18 +78,11 @@ function BuilderContent() {
         setMediaList(data.media);
         if (!selectedMediaId) setSelectedMediaId(data.media[0].id);
       } else {
-        const fallback: MediaItem[] = [
-          { id: "17998877665544332", caption: "5 Underrated GitHub Repos You Must Know If You're a Vibe Coder 🚀", media_type: "VIDEO", like_count: 2324, comments_count: 2243 },
-          { id: "17998877665544333", caption: "Complete Instagram Automation Setup in 5 Minutes 🔥", media_type: "VIDEO", like_count: 30, comments_count: 7 },
-          { id: "17998877665544334", caption: "Most startup ideas fail because people don't validate. Here is how...", media_type: "IMAGE", like_count: 116, comments_count: 30 },
-          { id: "17998877665544335", caption: "Building a full-stack AI SaaS app live on camera 💻", media_type: "VIDEO", like_count: 890, comments_count: 142 },
-          { id: "17998877665544336", caption: "10 Growth Secrets for Instagram Automation 🚀", media_type: "IMAGE", like_count: 1450, comments_count: 210 },
-          { id: "17998877665544337", caption: "How I grew to 50k followers with automated DMs 📈", media_type: "IMAGE", like_count: 620, comments_count: 89 },
-        ];
-        setMediaList(fallback);
-        if (!selectedMediaId) setSelectedMediaId(fallback[0].id);
+        setMediaList([]);
       }
-    } catch { /* fallback silently */ }
+    } catch {
+      setMediaList([]);
+    }
   };
 
   useEffect(() => {
@@ -222,8 +217,10 @@ function BuilderContent() {
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", color: "var(--text-main)", overflowY: "auto" }}>
                   <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border-card)", flexShrink: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <div style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#0c0a09", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "0.7rem" }}>I</div>
-                      <span style={{ fontWeight: "600", fontSize: "0.8rem" }}>iamganiofficial</span>
+                      <div style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#0c0a09", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "0.7rem" }}>
+                        {username.charAt(0).toUpperCase()}
+                      </div>
+                      <span style={{ fontWeight: "600", fontSize: "0.8rem" }}>{username}</span>
                     </div>
                     <span style={{ color: "var(--text-muted)" }}>•••</span>
                   </div>
@@ -243,7 +240,7 @@ function BuilderContent() {
                   </div>
                   <div style={{ padding: "0 14px", fontSize: "0.78rem", lineHeight: 1.4, flexShrink: 0 }}>
                     {selectedMediaObj && <p style={{ fontWeight: "600", fontSize: "0.72rem", marginBottom: "3px" }}>{(selectedMediaObj.like_count || 0).toLocaleString()} likes</p>}
-                    <p style={{ marginBottom: "6px" }}><strong>iamganiofficial</strong> {selectedMediaObj?.caption || "Comment below for instant access!"}</p>
+                    <p style={{ marginBottom: "6px" }}><strong>{username}</strong> {selectedMediaObj?.caption || "Comment below for instant access!"}</p>
                   </div>
                   <div style={{ padding: "0 14px 14px", flexShrink: 0 }}>
                     <div style={{ padding: "8px 10px", borderRadius: "10px", background: "var(--bg-soft)", border: "1px solid var(--border-card)", display: "flex", gap: "8px" }}>
@@ -258,8 +255,10 @@ function BuilderContent() {
               ) : (
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", color: "var(--text-main)", padding: "14px", overflowY: "auto" }}>
                   <div style={{ textAlign: "center", marginBottom: "16px", borderBottom: "1px solid var(--border-card)", paddingBottom: "10px", flexShrink: 0 }}>
-                    <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: "#0c0a09", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 4px", fontWeight: "700", fontSize: "0.72rem" }}>I</div>
-                    <div style={{ fontWeight: "600", fontSize: "0.82rem" }}>iamganiofficial</div>
+                    <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: "#0c0a09", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 4px", fontWeight: "700", fontSize: "0.72rem" }}>
+                      {username.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ fontWeight: "600", fontSize: "0.82rem" }}>{username}</div>
                     <div style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>Active now</div>
                   </div>
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px", justifyContent: "flex-end" }}>

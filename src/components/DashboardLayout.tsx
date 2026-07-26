@@ -30,7 +30,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({
   children,
-  username = "User",
+  username = "your_account",
   userId,
 }: DashboardLayoutProps) {
   const pathname = usePathname();
@@ -38,18 +38,18 @@ export function DashboardLayout({
   const [analyticsOpen, setAnalyticsOpen] = useState(true);
 
   const [stats, setStats] = useState({
-    dms_sent: 2200,
-    active_automations: 10,
+    dms_sent: 0,
+    active_automations: 0,
   });
 
   const fetchStats = async () => {
     try {
       const res = await fetch("/api/stats");
       const data = await res.json();
-      if (data) {
+      if (data && typeof data.dms_sent === "number") {
         setStats({
-          dms_sent: data.dms_sent || 2200,
-          active_automations: data.active_automations || 10,
+          dms_sent: data.dms_sent || 0,
+          active_automations: data.active_automations || 0,
         });
       }
     } catch {
