@@ -30,10 +30,10 @@ async function takeScreenshots() {
     },
   ]);
 
-  // First create a realistic sample automation via API so dashboard looks populated
   const page = await authContext.newPage();
   await page.goto("http://localhost:3000/api/automations", { waitUntil: "networkidle" });
   
+  // Seed sample automation for clean display
   await page.evaluate(async () => {
     await fetch("/api/automations", {
       method: "POST",
@@ -69,9 +69,39 @@ async function takeScreenshots() {
   await page.screenshot({ path: path.join(outputDir, "builder.png") });
   console.log("  ✅ Saved public/screenshots/builder.png");
 
+  // 4. Templates Page Screenshot
+  await page.goto("http://localhost:3000/dashboard/templates", { waitUntil: "networkidle" });
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(outputDir, "templates.png") });
+  console.log("  ✅ Saved public/screenshots/templates.png");
+
+  // 5. Rewind Page Screenshot
+  await page.goto("http://localhost:3000/dashboard/rewind", { waitUntil: "networkidle" });
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(outputDir, "rewind.png") });
+  console.log("  ✅ Saved public/screenshots/rewind.png");
+
+  // 6. Analytics Page Screenshot
+  await page.goto("http://localhost:3000/dashboard/analytics", { waitUntil: "networkidle" });
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(outputDir, "analytics.png") });
+  console.log("  ✅ Saved public/screenshots/analytics.png");
+
+  // 7. Audience Insights Page Screenshot
+  await page.goto("http://localhost:3000/dashboard/insights", { waitUntil: "networkidle" });
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(outputDir, "insights.png") });
+  console.log("  ✅ Saved public/screenshots/insights.png");
+
+  // 8. Contacts Page Screenshot
+  await page.goto("http://localhost:3000/dashboard/contacts", { waitUntil: "networkidle" });
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(outputDir, "contacts.png") });
+  console.log("  ✅ Saved public/screenshots/contacts.png");
+
   await authContext.close();
   await browser.close();
-  console.log("🎉 All 4 screenshots captured successfully!");
+  console.log("🎉 All 8 screenshots captured successfully!");
 }
 
 takeScreenshots().catch((err) => {

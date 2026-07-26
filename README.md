@@ -23,6 +23,30 @@ Inspired by ElevenLabs' quietly editorial print magazine design system (off-whit
 
 ---
 
+## 📸 More Screenshots
+
+### 5. One-Click Automation Templates Gallery
+Pre-built high-converting comment-to-DM, story mention, and lead magnet delivery templates.
+![DMflow Templates](./public/screenshots/templates.png)
+
+### 6. Retroactive Comment Rewind Engine
+4-step visual tracker to retroactively dispatch DMs to past comments on your posts.
+![DMflow Rewind](./public/screenshots/rewind.png)
+
+### 7. Performance & Range Analytics
+Detailed metrics, CTR charts, and date-range performance breakdowns.
+![DMflow Analytics](./public/screenshots/analytics.png)
+
+### 8. Audience Insights & Top Commenters
+Ranked leaderboard of your most engaged Instagram followers and comment triggers.
+![DMflow Audience Insights](./public/screenshots/insights.png)
+
+### 9. Lead Contacts Directory & CSV Export
+Centralized lead management storing handles, captured emails, and DM interaction stats.
+![DMflow Contacts Directory](./public/screenshots/contacts.png)
+
+---
+
 ## ✨ Features
 
 - **⚡ Centerpiece Automation Builder**:
